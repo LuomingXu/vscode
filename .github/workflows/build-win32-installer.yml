@@ -57,7 +57,7 @@ jobs:
 
       - name: Build client
         shell: pwsh
-        run: npm run gulp "vscode-win32-${{ env.VSCODE_ARCH }}-min-ci"
+        run: npm run gulp "vscode-win32-${{ env.VSCODE_ARCH }}-min"
 
       - name: Build inno updater
         shell: pwsh
