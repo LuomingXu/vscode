@@ -761,6 +761,7 @@ CommandsRegistry.registerCommand({
 	}
 });
 
+// ✅ 注册命令处理函数（快捷键绑定F5）
 KeybindingsRegistry.registerCommandAndKeybindingRule({
 	id: DEBUG_START_COMMAND_ID,
 	weight: KeybindingWeight.WorkbenchContrib,
@@ -769,13 +770,16 @@ KeybindingsRegistry.registerCommandAndKeybindingRule({
 	handler: async (accessor: ServicesAccessor, debugStartOptions?: { config?: Partial<IConfig>; noDebug?: boolean }) => {
 		const debugService = accessor.get(IDebugService);
 		await saveAllBeforeDebugStart(accessor.get(IConfigurationService), accessor.get(IEditorService));
+		// 2. 获取选中的调试配置
 		const { launch, name, getConfig } = debugService.getConfigurationManager().selectedConfiguration;
 		const config = await getConfig();
 		const configOrName = config ? Object.assign(deepClone(config), debugStartOptions?.config) : name;
+		// 3. 启动调试
 		await debugService.startDebugging(launch, configOrName, { noDebug: debugStartOptions?.noDebug, startedByUser: true }, false);
 	}
 });
 
+// ✅ 运行（无调试）命令
 KeybindingsRegistry.registerCommandAndKeybindingRule({
 	id: DEBUG_RUN_COMMAND_ID,
 	weight: KeybindingWeight.WorkbenchContrib,

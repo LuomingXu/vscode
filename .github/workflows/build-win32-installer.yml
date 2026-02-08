@@ -1,0 +1,93 @@
+name: Build Windows Installer
+
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: "Target architecture (x64 or arm64)"
+        required: false
+        default: "x64"
+        type: choice
+        options:
+          - x64
+          - arm64
+      setup_target:
+        description: "Installer target"
+        required: false
+        default: "system"
+        type: choice
+        options:
+          - system
+          - user
+          - both
+
+permissions: {}
+
+jobs:
+  build-win32-installer:
+    name: Build Windows ${{ inputs.arch }} Installer
+    runs-on: windows-latest
+    env:
+      VSCODE_ARCH: ${{ inputs.arch }}
+    steps:
+      - name: Checkout microsoft/vscode
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install Inno Setup
+        uses: crazy-max/ghaction-chocolatey@v3
+        with:
+          args: install innosetup --no-progress
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          npm ci
+        env:
+          npm_config_arch: ${{ env.VSCODE_ARCH }}
+          npm_config_foreground_scripts: "true"
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+      - name: Build client
+        shell: pwsh
+        run: npm run gulp "vscode-win32-${{ env.VSCODE_ARCH }}-min-ci"
+
+      - name: Build inno updater
+        shell: pwsh
+        run: npm run gulp "vscode-win32-${{ env.VSCODE_ARCH }}-inno-updater"
+
+      - name: Build system installer
+        if: ${{ inputs.setup_target == 'system' || inputs.setup_target == 'both' }}
+        shell: pwsh
+        run: npm run gulp "vscode-win32-${{ env.VSCODE_ARCH }}-system-setup"
+
+      - name: Build user installer
+        if: ${{ inputs.setup_target == 'user' || inputs.setup_target == 'both' }}
+        shell: pwsh
+        run: npm run gulp "vscode-win32-${{ env.VSCODE_ARCH }}-user-setup"
+
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $OutputDir = "artifacts"
+          New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
+          if (Test-Path ".build/win32-${{ env.VSCODE_ARCH }}/system-setup/VSCodeSetup.exe") {
+            Copy-Item ".build/win32-${{ env.VSCODE_ARCH }}/system-setup/VSCodeSetup.exe" "$OutputDir/VSCodeSetup-${{ env.VSCODE_ARCH }}-system.exe"
+          }
+          if (Test-Path ".build/win32-${{ env.VSCODE_ARCH }}/user-setup/VSCodeSetup.exe") {
+            Copy-Item ".build/win32-${{ env.VSCODE_ARCH }}/user-setup/VSCodeSetup.exe" "$OutputDir/VSCodeSetup-${{ env.VSCODE_ARCH }}-user.exe"
+          }
+
+      - name: Upload installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-win32-${{ env.VSCODE_ARCH }}-installers
+          path: artifacts/*

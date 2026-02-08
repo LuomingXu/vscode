@@ -26,8 +26,8 @@ import { WorkbenchStateContext } from '../../../common/contextkeys.js';
 import { IViewDescriptorService } from '../../../common/views.js';
 import { IViewsService } from '../../../services/views/common/viewsService.js';
 import { FocusSessionActionViewItem, StartDebugActionViewItem } from './debugActionViewItems.js';
-import { DEBUG_CONFIGURE_COMMAND_ID, DEBUG_CONFIGURE_LABEL, DEBUG_START_COMMAND_ID, DEBUG_START_LABEL, DISCONNECT_ID, FOCUS_SESSION_ID, SELECT_AND_START_ID, STOP_ID } from './debugCommands.js';
-import { debugConfigure } from './debugIcons.js';
+import { DEBUG_CONFIGURE_COMMAND_ID, DEBUG_CONFIGURE_LABEL, DEBUG_START_COMMAND_ID, DEBUG_START_LABEL, DEBUG_RUN_COMMAND_ID, DEBUG_RUN_LABEL, DISCONNECT_ID, FOCUS_SESSION_ID, SELECT_AND_START_ID, STOP_ID } from './debugCommands.js';
+import { debugConfigure, debugRun } from './debugIcons.js';
 import { createDisconnectMenuItemAction } from './debugToolBar.js';
 import { WelcomeView } from './welcomeView.js';
 import { BREAKPOINTS_VIEW_ID, CONTEXT_DEBUGGERS_AVAILABLE, CONTEXT_DEBUG_STATE, CONTEXT_DEBUG_UX, CONTEXT_DEBUG_UX_KEY, getStateLabel, IDebugService, ILaunch, REPL_VIEW_ID, State, VIEWLET_ID, EDITOR_CONTRIBUTION_ID, IDebugEditorContribution } from '../common/debug.js';
@@ -168,6 +168,7 @@ export class DebugViewPaneContainer extends ViewPaneContainer {
 	}
 }
 
+// 注册"开始调试"命令
 MenuRegistry.appendMenuItem(MenuId.ViewContainerTitle, {
 	when: ContextKeyExpr.and(
 		ContextKeyExpr.equals('viewContainer', VIEWLET_ID),
@@ -189,6 +190,27 @@ MenuRegistry.appendMenuItem(MenuId.ViewContainerTitle, {
 		id: DEBUG_START_COMMAND_ID,
 		title: DEBUG_START_LABEL
 	}
+});
+
+// ✅ 新增：添加"运行不调试"按钮到活动栏（紧跟在开始调试按钮之后）
+MenuRegistry.appendMenuItem(MenuId.ViewContainerTitle, {
+    when: ContextKeyExpr.and(
+        ContextKeyExpr.equals('viewContainer', VIEWLET_ID),
+        CONTEXT_DEBUG_UX.notEqualsTo('simple'),
+        WorkbenchStateContext.notEqualsTo('empty'),
+        ContextKeyExpr.or(
+            CONTEXT_DEBUG_STATE.isEqualTo('inactive'),
+            ContextKeyExpr.notEquals('config.debug.toolBarLocation', 'docked')
+        )
+    ),
+    order: 11,  // ← 顺序比"开始调试"稍后（10 → 11）
+    group: 'navigation',
+	icon: debugRun,
+    command: {
+        precondition: CONTEXT_DEBUG_STATE.notEqualsTo(getStateLabel(State.Initializing)),
+        id: DEBUG_RUN_COMMAND_ID,
+        title: DEBUG_RUN_LABEL
+    }
 });
 
 registerAction2(class extends Action2 {
